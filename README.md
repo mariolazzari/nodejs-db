@@ -93,4 +93,39 @@ Static schema definitio of:
 
 ## MongoDB
 
-### Product data with MongoDB
+### MongoDB with Docker
+
+```sh
+docker pull mongo
+docker run --name mongodb -p 27017:27017 -d mongo
+docker start mongodb
+```
+
+### MongoDB with Compass
+
+```sh
+brew install --cask mongodb-compass
+```
+
+### Introducing Mongoose
+
+[Mongoose docs](https://mongoosejs.com/)
+
+### Setting up Mongoose and MongoDB
+
+```js
+export const config = {
+  mongodb: {
+    uri: process.env.MONGODB_URI || "mongodb://localhost:27017/simpleshop",
+    options: {
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 3000,
+    },
+  },
+};
+```
+
+### Building Product model
+
+```js
+```
