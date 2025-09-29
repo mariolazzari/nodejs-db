@@ -1,5 +1,6 @@
 import fp from "fastify-plugin";
 import mongoose from "mongoose";
+import { Item } from "../../models/mongoose/Item.js";
 
 async function mongoosePlugin(fastify, config) {
   let mongoStatus = "disconnected";
@@ -13,6 +14,8 @@ async function mongoosePlugin(fastify, config) {
     await mongoose.connect(config.uri, config.options);
     mongoStatus = "connected";
     fastify.log.info("Connected to MongoDB");
+    // Make the Item model available through fastify
+    fastify.decorate("Item", Item);
   } catch (error) {
     mongoStatus = "error";
     fastify.log.error("Error connecting to MongoDB:");
