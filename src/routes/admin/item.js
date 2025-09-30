@@ -5,13 +5,13 @@ export default async function (fastify) {
     const items = [
       // Example data, replace with database query
       { id: "1", sku: "1001", name: "Example Item 1", price: 10.99 },
-      { id: "2", sku: "1002", name: "Example Item 2", price: 15.49 }
+      { id: "2", sku: "1002", name: "Example Item 2", price: 15.49 },
     ];
 
     return reply.view("admin/item.ejs", {
       title: "Manage Items",
       currentPath: "/admin/item",
-      items
+      items,
     });
   });
 
@@ -50,7 +50,7 @@ export default async function (fastify) {
       title: "Edit Item",
       currentPath: "/admin/item",
       items: [], // Pass empty items array for simplicity
-      item
+      item,
     });
   });
 }

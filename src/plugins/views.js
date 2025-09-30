@@ -7,10 +7,10 @@ import ejs from "ejs";
 async function viewPlugin(fastify) {
   fastify.register(fastifyView, {
     engine: {
-      ejs
+      ejs,
     },
     root: path.join(process.cwd(), "src/views"), // Path to your views
-    layout: "layout.ejs" // Optional: Default layout
+    layout: "layout.ejs", // Optional: Default layout
   });
 }
 

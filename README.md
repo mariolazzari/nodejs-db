@@ -236,3 +236,11 @@ export default fp(mongoosePlugin, { name: "mongoose-plugin" });
 ```
 
 ### Populate MongoDB
+
+Import button on collection
+
+### Querying items with Mongoose
+
+```js
+
+```

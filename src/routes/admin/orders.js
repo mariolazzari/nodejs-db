@@ -10,14 +10,14 @@ export default async function (fastify) {
       return reply.view("admin/orders.ejs", {
         title: "Manage Orders",
         currentPath: "/admin/orders",
-        orders
+        orders,
       });
     } catch (error) {
       request.session.set("messages", [
         {
           type: "danger",
-          text: "Failed to fetch orders. Please try again later."
-        }
+          text: "Failed to fetch orders. Please try again later.",
+        },
       ]);
       fastify.log.error("Error fetching orders:", error);
       return reply.redirect("/admin/orders");
@@ -36,7 +36,7 @@ export default async function (fastify) {
 
       if (!order) {
         request.session.set("messages", [
-          { type: "danger", text: `Order with ID ${orderId} not found.` }
+          { type: "danger", text: `Order with ID ${orderId} not found.` },
         ]);
         return reply.redirect("/admin/orders");
       }
@@ -45,7 +45,7 @@ export default async function (fastify) {
       fastify.log.info(`Order ${orderId} marked as shipped.`);
 
       request.session.set("messages", [
-        { type: "success", text: `Order ${orderId} marked as shipped.` }
+        { type: "success", text: `Order ${orderId} marked as shipped.` },
       ]);
 
       return reply.redirect("/admin/orders");
@@ -53,8 +53,8 @@ export default async function (fastify) {
       request.session.set("messages", [
         {
           type: "danger",
-          text: "Failed to update order status. Please try again."
-        }
+          text: "Failed to update order status. Please try again.",
+        },
       ]);
       fastify.log.error("Error updating order status:", error);
       return reply.redirect("/admin/orders");

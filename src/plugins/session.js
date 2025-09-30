@@ -17,12 +17,12 @@ async function sessionPlugin(fastify, config) {
       path: "/",
       httpOnly: true,
       secure: false,
-      maxAge: 3600 // 1-hour session expiration
-    }
+      maxAge: 3600, // 1-hour session expiration
+    },
   });
 
   // Decorate to clear session
-  fastify.decorate("clearSession", (req) => {
+  fastify.decorate("clearSession", req => {
     req.session.delete();
   });
 
@@ -31,7 +31,7 @@ async function sessionPlugin(fastify, config) {
     reply.locals = {
       ...(reply.locals || {}),
       currentUser: req.session.get("user") || null,
-      messages: req.session.get("messages") || []
+      messages: req.session.get("messages") || [],
     };
   });
 
