@@ -427,3 +427,98 @@ export default async function (fastify) {
 ```
 
 ### Optimizing queries with indexes
+
+```js
+import mongoose from "mongoose";
+
+const ItemSchema = new mongoose.Schema(
+  {
+    sku: {
+      type: String,
+      required: true,
+      index: {
+        unique: true,
+      },
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+// index by ascending tags
+ItemSchema.index({ tags: 1 });
+// index by ascending name
+ItemSchema.index({ name: 1 });
+// text index for text search on name and tags
+ItemSchema.index({ name: "text", tags: "text" });
+
+export const Item = mongoose.model("Item", ItemSchema);
+```
+
+### Performing text search in MongoDB
+
+```js
+export default async function (fastify) {
+  // Route to display all items with pagination
+  fastify.get("/:tag?", async (request, reply) => {
+    const { page = 1, limit = 10, q } = request.query; // Defaults: page 1, 10 items per page
+    const { tag } = request.params;
+
+    const query = {};
+    if (tag) {
+      query.tags = tag;
+    }
+    if (q) {
+      query.$text = { $search: q };
+    }
+
+    // Fetch all items with pagination
+    const allItems = await fastify.Item.find(query)
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    // Fetch distinct tags for filtering
+    const tags = await fastify.Item.distinct("tags");
+    const totalPages = Math.ceil((await fastify.Item.countDocuments()) / limit);
+
+    // Implement pagination
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = allItems.slice(startIndex, startIndex + limit);
+
+    // Render the shop view with paginated items and tags
+    return reply.view("shop.ejs", {
+      title: "Shop",
+      currentPath: "/shop",
+      items: allItems,
+      tags,
+      currentPage: +page,
+      totalPages,
+      currentTag: tag || null,
+    });
+  });
+}
+```
+
+## MySQL
+
+### Using MySQL for users and orders
+
+### MySQL with Docker
+
+```sh
+
+```

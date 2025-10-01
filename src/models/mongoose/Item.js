@@ -27,4 +27,11 @@ const ItemSchema = new mongoose.Schema(
   }
 );
 
+// index by ascending tags
+ItemSchema.index({ tags: 1 });
+// index by ascending name
+ItemSchema.index({ name: 1 });
+// text index for text search on name and tags
+ItemSchema.index({ name: "text", tags: "text" });
+
 export const Item = mongoose.model("Item", ItemSchema);
