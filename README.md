@@ -535,3 +535,71 @@ brew install --cask mysqlworkbench
 [Sequelize](https://sequelize.org/)
 
 ### MySQL connection
+
+```sh
+pnpm add sequelize mysql2
+```
+
+```js
+export const config = {
+  server: {
+    port: process.env.PORT || 3000,
+  },
+  mongodb: {
+    uri: process.env.MONGODB_URI || "mongodb://localhost:27017/simpleshop",
+    options: {
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 3000,
+    },
+  },
+  mysql: {
+    uri:
+      process.env.MYSQL_URI || "mysql://root:secret@localhost:3306/simpleshop",
+    options: {
+      logging: false,
+    },
+  },
+  session: {
+    // Secret key to encrypt client side sessions.
+    // Created on the terminal with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+    secret: "x3cIkEhWRLRLBD8Zfhd2SUw0UEGieSjOVV2a1a82YEE=",
+  },
+};
+```
+
+```js
+import fp from "fastify-plugin";
+import { Sequelize } from "sequelize";
+
+async function sequelizePlugin(fastify, config) {
+  let mysqlStatus = "disconnected";
+
+  // Connect to MySQL via Sequelize and update the status
+  try {
+    const sequelize = new Sequelize(config.uri, config.options);
+    await sequelize.authenticate();
+    fastify.log.info("MySQL connected via Sequelize");
+    mysqlStatus = "connected";
+    fastify.decorate("sequelize", sequelize);
+  } catch (error) {
+    fastify.log.error("Unable to connect to MySQL via Sequelize:", error);
+    mysqlStatus = "error";
+    throw error;
+  }
+
+  fastify.decorate("mysqlStatus", () => mysqlStatus);
+
+  // Graceful shutdown
+  fastify.addHook("onClose", async (fastifyInstance, done) => {
+    mysqlStatus = "disconnected";
+    // Close Sequelize connection
+    await fastifyInstance.sequelize.close();
+    fastifyInstance.log.info("MySQL connection closed");
+    done();
+  });
+}
+
+export default fp(sequelizePlugin, { name: "sequelize-plugin" });
+```
+
+### Designing database structure
