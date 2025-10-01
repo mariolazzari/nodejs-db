@@ -242,5 +242,188 @@ Import button on collection
 ### Querying items with Mongoose
 
 ```js
+export default async function (fastify) {
+  // Route to display all items with pagination
+  fastify.get("/:tag?", async (request, reply) => {
+    const { page = 1, limit = 10 } = request.query; // Defaults: page 1, 10 items per page
+    const { tag } = request.params;
 
+    const query = tag ? { tags: tag } : {};
+
+    // Fetch all items with pagination
+    const allItems = await fastify.Item.find(query)
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    // Fetch distinct tags for filtering
+    const tags = await fastify.Item.distinct("tags");
+    const totalPages = Math.ceil((await fastify.Item.countDocuments()) / limit);
+
+    // Implement pagination
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = allItems.slice(startIndex, startIndex + limit);
+
+    // Render the shop view with paginated items and tags
+    return reply.view("shop.ejs", {
+      title: "Shop",
+      currentPath: "/shop",
+      items: allItems,
+      tags,
+      currentPage: +page,
+      totalPages,
+      currentTag: tag || null,
+    });
+  });
+}
 ```
+
+### Item administration
+
+```js
+export default async function (fastify) {
+  // Route to display and manage items
+  fastify.get("/", async (_request, reply) => {
+    // fetching items from the database
+    const items = await fastify.Item.find({});
+
+    return reply.view("admin/item.ejs", {
+      title: "Manage Items",
+      currentPath: "/admin/item",
+      items,
+    });
+  });
+
+  // Route to create or edit an item
+  fastify.post("/", async (request, reply) => {
+    const { itemId, sku, name, price } = request.body;
+
+    // create or update an item
+    if (itemId) {
+      fastify.log.info(`Updating item ${itemId}:`, { sku, name, price });
+    } else {
+      fastify.log.info(`Creating new item:`, { sku, name, price });
+    }
+
+    return reply.redirect("/admin/item");
+  });
+
+  // Route to delete an item
+  fastify.get("/delete/:id", async (request, reply) => {
+    const { id } = request.params;
+
+    // Placeholder logic to delete an item
+    fastify.log.info(`Deleting item with id: ${id}`);
+
+    return reply.redirect("/admin/item");
+  });
+
+  // Route to fetch a single item for editing
+  fastify.get("/:id", async (request, reply) => {
+    const { id } = request.params;
+
+    // fetching a single item from the database
+    const item = await fastify.Item.findById(id);
+
+    return reply.view("admin/item.ejs", {
+      title: "Edit Item",
+      currentPath: "/admin/item",
+      items: [], // Pass empty items array for simplicity
+      item,
+    });
+  });
+}
+```
+
+### Item CRUD
+
+```js
+export default async function (fastify) {
+  // Route to display and manage items
+  fastify.get("/", async (_request, reply) => {
+    // fetching items from the database
+    const items = await fastify.Item.find({});
+
+    return reply.view("admin/item.ejs", {
+      title: "Manage Items",
+      currentPath: "/admin/item",
+      items,
+    });
+  });
+
+  // Route to create or edit an item
+  fastify.post("/", async (request, reply) => {
+    const { itemId, sku, name, price, tags } = request.body;
+
+    const parsedTags = tags
+      ? tags
+          .split(",")
+          .map(tag => tag.trim())
+          .filter(tag => tag.length > 0)
+      : [];
+
+    try {
+      // create or update an item
+      if (itemId) {
+        await fastify.Item.findByIdAndUpdate(itemId, {
+          sku,
+          name,
+          price,
+          tags: parsedTags,
+        });
+        fastify.log.info(`Updating item ${itemId}:`, { sku, name, price });
+      } else {
+        await fastify.Item.create({ sku, name, price, tags: parsedTags });
+        fastify.log.info(`Creating new item: ${name}`);
+      }
+
+      request.session.set("messages", {
+        type: "success",
+        text: item ? `Item ${itemId} updated.` : "New item created.",
+      });
+
+      return reply.redirect("/admin/item");
+    } catch (error) {
+      fastify.log.error("Error creating/updating item:", error);
+
+      request.session.set("messages", {
+        type: "error",
+        text: "An error occurred while processing your request.",
+      });
+
+      return reply.redirect("/admin/item");
+    }
+  });
+
+  // Route to delete an item
+  fastify.get("/delete/:id", async (request, reply) => {
+    const { id } = request.params;
+
+    try {
+      // delete an item
+      await fastify.Item.findByIdAndDelete(id);
+      fastify.log.info(`Deleting item with id: ${id}`);
+    } catch (error) {
+      fastify.log.error("Error deleting item:", error);
+    }
+
+    return reply.redirect("/admin/item");
+  });
+
+  // Route to fetch a single item for editing
+  fastify.get("/:id", async (request, reply) => {
+    const { id } = request.params;
+
+    // fetching a single item from the database
+    const item = await fastify.Item.findById(id);
+
+    return reply.view("admin/item.ejs", {
+      title: "Edit Item",
+      currentPath: "/admin/item",
+      items: [], // Pass empty items array for simplicity
+      item,
+    });
+  });
+}
+```
+
+### Optimizing queries with indexes

@@ -4,8 +4,10 @@ export default async function (fastify) {
     const { page = 1, limit = 10 } = request.query; // Defaults: page 1, 10 items per page
     const { tag } = request.params;
 
+    const query = tag ? { tags: tag } : {};
+
     // Fetch all items with pagination
-    const allItems = await fastify.Item.find({})
+    const allItems = await fastify.Item.find(query)
       .skip((page - 1) * limit)
       .limit(limit);
 
