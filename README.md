@@ -520,5 +520,18 @@ export default async function (fastify) {
 ### MySQL with Docker
 
 ```sh
-
+docker pull mysql
+docker run --name mysql -e MYSQL_ROOT_PASSWORD=secret -p 3306:3306 -d mysql
 ```
+
+### MySQL WorkBench
+
+```sh
+brew install --cask mysqlworkbench
+```
+
+### Introducing Sequelize
+
+[Sequelize](https://sequelize.org/)
+
+### MySQL connection
