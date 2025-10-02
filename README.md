@@ -942,3 +942,175 @@ export default (sequelize, DataTypes) => {
   return User;
 };
 ```
+
+### User login
+
+```js
+export default async function (fastify) {
+  // GET /login - Render the login form
+  fastify.get("/login", async (req, reply) => {
+    try {
+      if (req.session.get("user")) {
+        // Redirect if already logged in
+        return reply.redirect("/");
+      }
+
+      return reply.view("login", {
+        currentPath: "/user/login",
+        messages: req.session.get("messages") || [],
+      });
+    } catch (error) {
+      req.session.set("messages", [
+        { type: "danger", text: "Failed to load login page." },
+      ]);
+      req.log.error("Error rendering login page:", error);
+      return reply.redirect("/");
+    }
+  });
+
+  // POST /login - Handle login logic with validation
+  fastify.post(
+    "/login",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["email", "password"],
+          properties: {
+            email: { type: "string", format: "email" },
+            password: { type: "string", minLength: 6 },
+          },
+          additionalProperties: false, // Prevent unexpected properties
+        },
+      },
+      attachValidation: true, // Attach validation errors
+    },
+    async (req, reply) => {
+      try {
+        if (req.validationError) {
+          req.session.set("messages", [
+            { type: "danger", text: "Invalid email or password format." },
+          ]);
+          return reply.redirect("/user/login");
+        }
+
+        const { email, password } = req.body;
+        const user = await fastify.sequelize.models.User.findOne({
+          where: { email },
+        });
+        if (!user) {
+          req.session.set("messages", [
+            { type: "danger", text: "Invalid email or password." },
+          ]);
+          return reply.redirect("/user/login");
+        }
+
+        const isPasswordValid = await user.validatePassword(password);
+        if (!isPasswordValid) {
+          req.session.set("messages", [
+            { type: "danger", text: "Invalid email or password." },
+          ]);
+          return reply.redirect("/user/login");
+        }
+
+        // Successful login
+        req.session.set("user", { id: user.id, email: user.email });
+        req.session.set("messages", [
+          { type: "success", text: "Login successful!" },
+        ]);
+
+        return reply.redirect("/user/login");
+      } catch (error) {
+        req.session.set("messages", [
+          { type: "danger", text: "Login failed due to an error." },
+        ]);
+        req.log.error("Error handling login:", error);
+        return reply.redirect("/user/login");
+      }
+    }
+  );
+
+  // GET /logout - Clear the session and redirect to the login page
+  fastify.get("/logout", async (req, reply) => {
+    try {
+      req.session.delete(); // Clear the session
+      req.session.set("messages", [
+        { type: "success", text: "You have been logged out." },
+      ]);
+      return reply.redirect("/user/login");
+    } catch (error) {
+      req.session.set("messages", [
+        { type: "danger", text: "Failed to log out." },
+      ]);
+      req.log.error("Error logging out:", error);
+      return reply.redirect("/");
+    }
+  });
+}
+```
+
+## Redis
+
+### Session management with Redis
+
+- In memory with periodic snapshot
+- O(1)
+- Ephemeral data
+- Caching, sessions
+
+#### Redis data types
+
+- Strings
+- Lists
+- Sorted sets
+- Hashmaps
+
+### Redis with Docker
+
+```sh
+docker pull redis
+docker run --name redis -p 6379:6379 -d redis
+```
+
+### Redis insight
+
+```sh
+brew install --cask redis-insight
+```
+
+### Redis connection
+
+```js
+import fp from "fastify-plugin";
+import Redis from "ioredis";
+
+async function redisPlugin(fastify, config) {
+  let redisStatus = "disconnected";
+
+  // Connect to Redis and update the status
+  try {
+    const redis = new Redis(config.host, config.port);
+    redisStatus = "connected";
+    fastify.log.info("Connected to Redis");
+    fastify.decorate("redis", redis);
+  } catch (ex) {
+    redisStatus = "error";
+    fastify.log.error("Error connecting to Redis:", ex);
+    throw ex;
+  }
+  fastify.decorate("redisStatus", () => redisStatus);
+
+  // Graceful shutdown
+  fastify.addHook("onClose", async (fastifyInstance, done) => {
+    redisStatus = "disconnected";
+    // Close Redis connection
+    await fastifyInstance.redis.quit();
+    fastifyInstance.log.info("Redis connection closed");
+    done();
+  });
+}
+
+export default fp(redisPlugin, { name: "redis-plugin" });
+```
+
+### User sessio with Redis

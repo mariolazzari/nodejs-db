@@ -1,5 +1,3 @@
-import { where } from "sequelize";
-
 export default async function (fastify) {
   // GET /login - Render the login form
   fastify.get("/login", async (req, reply) => {
