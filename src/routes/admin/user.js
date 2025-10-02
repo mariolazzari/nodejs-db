@@ -2,18 +2,18 @@ export default async function (fastify) {
   // GET /admin/user - Fetch and display a list of users
   fastify.get("/", async (request, reply) => {
     try {
-      // Placeholder: Fetch users from the database
-      const users = []; // Replace with actual database query
+      // Fetch users from the database
+      const users = await fastify.models.User.findAll();
 
       return reply.view("admin/user.ejs", {
         title: "Manage Users",
         currentPath: "/admin/user",
-        users
+        users,
       });
     } catch (error) {
       request.log.error(error);
       request.session.set("messages", [
-        { type: "danger", text: "Failed to fetch users." }
+        { type: "danger", text: "Failed to fetch users." },
       ]);
       return reply.redirect("/admin/user");
     }
@@ -25,21 +25,33 @@ export default async function (fastify) {
 
     try {
       if (userId) {
-        // Placeholder: Update existing user in the database
+        // Update existing user in the database
+        const user = await fastify.models.User.findByPk(userId);
+        if (!user) {
+          throw new Error("User not found");
+        }
+
+        user.email = email;
+        if (password) {
+          user.password = password; // Assume password is hashed in model hook
+        }
+        await user.save();
+
         request.session.set("messages", [
-          { type: "success", text: "User updated successfully." }
+          { type: "success", text: "User updated successfully." },
         ]);
       } else {
-        // Placeholder: Create a new user in the database
+        // Create a new user in the database
+        await fastify.models.User.create({ email, password });
         request.session.set("messages", [
-          { type: "success", text: "User created successfully." }
+          { type: "success", text: "User created successfully." },
         ]);
       }
       return reply.redirect("/admin/user");
     } catch (error) {
       request.log.error(error);
       request.session.set("messages", [
-        { type: "danger", text: "Failed to save user." }
+        { type: "danger", text: "Failed to save user." },
       ]);
       return reply.redirect("/admin/user");
     }
@@ -50,18 +62,25 @@ export default async function (fastify) {
     const { id } = request.params;
 
     try {
-      // Placeholder: Fetch user by ID from the database
-      const user = null; // Replace with actual database query
+      // Fetch user by ID from the database
+      const user = await fastify.models.User.findByPk(id);
+      if (!user) {
+        request.session.set("messages", [
+          { type: "danger", text: "User not found." },
+        ]);
+        return reply.redirect("/admin/user");
+      }
+
       return reply.view("admin/user.ejs", {
         title: "Edit User",
         currentPath: "/admin/user",
         user,
-        users: [] // Pass empty users array
+        users: [], // Pass empty users array
       });
     } catch (error) {
       request.log.error(error);
       request.session.set("messages", [
-        { type: "danger", text: "Failed to fetch user." }
+        { type: "danger", text: "Failed to fetch user." },
       ]);
       return reply.redirect("/admin/user");
     }
@@ -72,15 +91,21 @@ export default async function (fastify) {
     const { id } = request.params;
 
     try {
-      // Placeholder: Delete user from the database
+      // Delete user from the database
+      const user = await fastify.models.User.findByPk(id);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      await user.destroy();
+
       request.session.set("messages", [
-        { type: "success", text: "User deleted successfully." }
+        { type: "success", text: "User deleted successfully." },
       ]);
       return reply.redirect("/admin/user");
     } catch (error) {
       request.log.error(error);
       request.session.set("messages", [
-        { type: "danger", text: "Failed to delete user." }
+        { type: "danger", text: "Failed to delete user." },
       ]);
       return reply.redirect("/admin/user");
     }
@@ -89,6 +114,15 @@ export default async function (fastify) {
   // GET /admin/user/impersonate/:id - Impersonate a user
   fastify.get("/impersonate/:id", async (request, reply) => {
     const { id } = request.params;
+    const user = await fastify.models.User.findByPk(id);
+    if (!user) {
+      request.session.set("messages", [
+        { type: "danger", text: "User not found." },
+      ]);
+      return reply.redirect("/admin/user");
+    }
+
+    request.session.set("user", { id: user.id, email: user.email });
 
     try {
       // Placeholder: Impersonate user by ID
@@ -96,7 +130,7 @@ export default async function (fastify) {
     } catch (error) {
       request.log.error(error);
       request.session.set("messages", [
-        { type: "danger", text: "Failed to impersonate user." }
+        { type: "danger", text: "Failed to impersonate user." },
       ]);
       return reply.redirect("/admin/user");
     }
