@@ -1,3 +1,5 @@
+import { where } from "sequelize";
+
 export default async function (fastify) {
   // GET /login - Render the login form
   fastify.get("/login", async (req, reply) => {
@@ -47,19 +49,30 @@ export default async function (fastify) {
         }
 
         const { email, password } = req.body;
-
-        // TODO: Replace with real database authentication logic
-        if (email === "test@example.com" && password === "password123") {
-          req.session.set("user", { email }); // Save user data in session
+        const user = await fastify.sequelize.models.User.findOne({
+          where: { email },
+        });
+        if (!user) {
           req.session.set("messages", [
-            { type: "success", text: "Successfully logged in." },
+            { type: "danger", text: "Invalid email or password." },
           ]);
-          return reply.redirect("/");
+          return reply.redirect("/user/login");
         }
 
+        const isPasswordValid = await user.validatePassword(password);
+        if (!isPasswordValid) {
+          req.session.set("messages", [
+            { type: "danger", text: "Invalid email or password." },
+          ]);
+          return reply.redirect("/user/login");
+        }
+
+        // Successful login
+        req.session.set("user", { id: user.id, email: user.email });
         req.session.set("messages", [
-          { type: "danger", text: "Invalid email or password." },
+          { type: "success", text: "Login successful!" },
         ]);
+
         return reply.redirect("/user/login");
       } catch (error) {
         req.session.set("messages", [
