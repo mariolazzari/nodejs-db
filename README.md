@@ -603,3 +603,33 @@ export default fp(sequelizePlugin, { name: "sequelize-plugin" });
 ```
 
 ### Designing database structure
+
+### Sequelize user model
+
+```js
+import { DataTypes } from "sequelize";
+
+export default sequelize => {
+  const User = sequelize.define("User", {
+    email: {
+      type: DataTypes.STRING,
+      unique: true,
+      allowNull: false,
+      validate: { isEmail: true },
+    },
+    password: { type: DataTypes.STRING, allowNull: false },
+  });
+
+  return User;
+};
+
+User.associate = models => {
+  User.hasMany(models.Order, { foreignKey: "userId", as: "orders" });
+};
+```
+
+### Sequelize order model
+
+```js
+
+```
