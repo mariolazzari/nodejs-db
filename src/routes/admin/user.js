@@ -33,7 +33,7 @@ export default async function (fastify) {
 
         user.email = email;
         if (password) {
-          user.password = password; // Assume password is hashed in model hook
+          user.setPassword(password);
         }
         await user.save();
 
