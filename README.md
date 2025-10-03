@@ -1080,6 +1080,10 @@ brew install --cask redis-insight
 
 ### Redis connection
 
+```sh
+pnpm add ioredis
+```
+
 ```js
 import fp from "fastify-plugin";
 import Redis from "ioredis";
@@ -1114,3 +1118,11 @@ export default fp(redisPlugin, { name: "redis-plugin" });
 ```
 
 ### User sessio with Redis
+
+```sh
+pnpm add @fastify/cookie @fastify/session connect-redis 
+```
+
+### Redis basic operations part 1
+
+### Redis basic operations part 2
