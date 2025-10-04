@@ -8,23 +8,21 @@ export default async function (fastify) {
     if (tag) {
       query.tags = tag;
     }
+
     if (q) {
       query.$text = { $search: q };
     }
 
-    // Fetch all items with pagination
     const allItems = await fastify.Item.find(query)
       .sort({ name: 1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
-    // Fetch distinct tags for filtering
     const tags = await fastify.Item.distinct("tags");
-    const totalPages = Math.ceil((await fastify.Item.countDocuments()) / limit);
 
-    // Implement pagination
-    const startIndex = (page - 1) * limit;
-    const paginatedItems = allItems.slice(startIndex, startIndex + limit);
+    const totalPages = Math.ceil(
+      (await fastify.Item.countDocuments(query)) / limit
+    );
 
     // Render the shop view with paginated items and tags
     return reply.view("shop.ejs", {
@@ -32,9 +30,9 @@ export default async function (fastify) {
       currentPath: "/shop",
       items: allItems,
       tags,
-      currentPage: +page,
+      currentPage: parseInt(page, 10),
       totalPages,
-      currentTag: tag || null,
+      currentTag: tag || null
     });
   });
 }

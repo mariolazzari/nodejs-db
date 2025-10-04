@@ -6,52 +6,49 @@ import path from "path";
 async function sequelizePlugin(fastify, config) {
   let mysqlStatus = "disconnected";
 
-  // Connect to MySQL via Sequelize and update the status
+  // TODO: Connect to MySQL via Sequelize and update the status
   try {
     const sequelize = new Sequelize(config.uri, config.options);
     await sequelize.authenticate();
-    fastify.log.info("MySQL connected via Sequelize");
+    fastify.log.info("Connected to MySQL");
     mysqlStatus = "connected";
     fastify.decorate("sequelize", sequelize);
 
-    // models
+    // Deal with models
     const models = {};
     const modelsPath = path.resolve("src/models/sequelize");
-    const modelsFiles = await readdir(modelsPath);
+    const modelFiles = await readdir(modelsPath);
 
-    for (const file of modelsFiles) {
+    for (const file of modelFiles) {
       if (file.endsWith(".js")) {
         const model = (await import(path.join(modelsPath, file))).default(
           sequelize,
           Sequelize.DataTypes
         );
         models[model.name] = model;
+        fastify.log.info(`Sequelize model ${model.name} loaded`);
       }
     }
-
-    Object.keys(models).forEach(modelName => {
-      if (models[modelName].associate) {
-        models[modelName].associate(models);
+    Object.values(models).forEach((model) => {
+      if (model.associate) {
+        model.associate(models);
       }
     });
 
     await sequelize.sync({ alter: false });
-    fastify.log.info("Sequelize models loaded");
+    fastify.log.info("Sequelize models synced successfully");
     fastify.decorate("models", models);
-  } catch (error) {
-    fastify.log.error("Unable to connect to MySQL via Sequelize:", error);
-    mysqlStatus = "error";
-    throw error;
+  } catch (err) {
+    fastify.log.error("Failed to connect to MySQL");
+    throw err;
   }
-
   fastify.decorate("mysqlStatus", () => mysqlStatus);
 
   // Graceful shutdown
   fastify.addHook("onClose", async (fastifyInstance, done) => {
     mysqlStatus = "disconnected";
-    // Close Sequelize connection
-    await fastifyInstance.sequelize.close();
-    fastifyInstance.log.info("MySQL connection closed");
+    await sequelize.close();
+    // TODO: Close Sequelize connection
     done();
   });
 }

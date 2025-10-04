@@ -4,25 +4,24 @@ import Redis from "ioredis";
 async function redisPlugin(fastify, config) {
   let redisStatus = "disconnected";
 
-  // Connect to Redis and update the status
+  // TODO: Connect to Redis and update the status
   try {
     const redis = new Redis(config.host, config.port);
     redisStatus = "connected";
     fastify.log.info("Connected to Redis");
     fastify.decorate("redis", redis);
-  } catch (ex) {
-    redisStatus = "error";
-    fastify.log.error("Error connecting to Redis:", ex);
-    throw ex;
+  } catch (err) {
+    fastify.log.error("Failed to connect to Redis");
+    throw err;
   }
+
   fastify.decorate("redisStatus", () => redisStatus);
 
   // Graceful shutdown
   fastify.addHook("onClose", async (fastifyInstance, done) => {
     redisStatus = "disconnected";
-    // Close Redis connection
-    await fastifyInstance.redis.quit();
-    fastifyInstance.log.info("Redis connection closed");
+    // TODO: Close Redis connection
+    await fastify.redis.quit();
     done();
   });
 }

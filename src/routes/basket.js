@@ -1,7 +1,7 @@
 function requireLogin(req, reply) {
   if (!req.session.get("user")) {
     req.session.set("messages", [
-      { type: "warning", text: "Please log in first." },
+      { type: "warning", text: "Please log in first." }
     ]);
     reply.redirect("/user/login");
     return false; // Prevent further execution
@@ -11,10 +11,8 @@ function requireLogin(req, reply) {
 
 function basketKey(req) {
   const user = req.session.get("user");
-  if (!user) {
-    return null;
-  }
-  return `myBasket:user:${user.id}:items`;
+  if (!user) return null;
+  return `mybasket:user:${user.id}:items`;
 }
 
 export default async function (fastify) {
@@ -24,21 +22,18 @@ export default async function (fastify) {
       if (!requireLogin(req, reply)) return; // Stop execution if user is not logged in
 
       fastify.log.info("Fetching basket contents.");
-      // Fetch basket contents from Redis
+      // TODO: Fetch basket contents from Redis
       const key = basketKey(req);
-      if (!key) {
-        throw new Error("User session is invalid.");
-      }
-      const basketItems = await fastify.redis.hgetall(key);
-      const items = await Promise.all(
-        Object.entries(basketItems).map(async ([sku, quantity]) => {
-          const items = await fastify.Item.findOne({ sku });
+      const basket = await fastify.redis.hgetall(key);
 
+      const items = await Promise.all(
+        Object.entries(basket).map(async ([sku, quantity]) => {
+          const item = await fastify.Item.findOne({ sku });
           return {
             sku,
-            name: items ? items.name : "Unknown Item",
-            price: items ? items.price : "N/A",
-            quantity: +quantity,
+            name: item ? item.name : "Unknown Item",
+            price: item ? item.price : "N/A",
+            quantity: parseInt(quantity, 10)
           };
         })
       );
@@ -46,12 +41,12 @@ export default async function (fastify) {
       return reply.view("basket.ejs", {
         title: "Your Basket",
         currentPath: "/basket",
-        items,
+        items
       });
     } catch (error) {
       fastify.log.error("Error fetching basket contents:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to load basket contents." },
+        { type: "danger", text: "Failed to load basket contents." }
       ]);
       return reply.redirect("/basket");
     }
@@ -65,24 +60,20 @@ export default async function (fastify) {
       const { sku, quantity } = req.body;
       fastify.log.info(`Adding item with SKU: ${sku}, quantity: ${quantity}`);
 
-      // Add the item to the Redis basket
+      // TODO: Add the item to the Redis basket
       const key = basketKey(req);
-      if (!key) {
-        throw new Error("User session is invalid.");
-      }
-      await fastify.redis.hincrby(key, sku, +quantity);
-
+      await fastify.redis.hincrby(key, sku, parseInt(quantity, 10));
       req.session.set("messages", [
         {
           type: "success",
-          text: `Item with SKU: ${sku} was added to the basket.`,
-        },
+          text: `Item with SKU: ${sku} was added to the basket.`
+        }
       ]);
       return reply.redirect(req.headers.referer || "/basket");
     } catch (error) {
       fastify.log.error("Error adding item to basket:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to add item to the basket." },
+        { type: "danger", text: "Failed to add item to the basket." }
       ]);
       return reply.redirect("/basket");
     }
@@ -96,24 +87,20 @@ export default async function (fastify) {
       const { sku } = req.body;
       fastify.log.info(`Removing item with SKU: ${sku}`);
 
-      // Remove the item from the Redis basket
+      // TODO: Remove the item from the Redis basket
       const key = basketKey(req);
-      if (!key) {
-        throw new Error("User session is invalid.");
-      }
       await fastify.redis.hdel(key, sku);
-
       req.session.set("messages", [
         {
           type: "success",
-          text: `Item with SKU: ${sku} was removed from the basket.`,
-        },
+          text: `Item with SKU: ${sku} was removed from the basket.`
+        }
       ]);
       return reply.redirect(req.headers.referer || "/basket");
     } catch (error) {
       fastify.log.error("Error removing item from basket:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to remove item from the basket." },
+        { type: "danger", text: "Failed to remove item from the basket." }
       ]);
       return reply.redirect("/basket");
     }
@@ -125,33 +112,62 @@ export default async function (fastify) {
       if (!requireLogin(req, reply)) return;
 
       fastify.log.info("Processing basket purchase...");
-      // Retrieve basket items from Redis and process purchase
+      // TODO: Retrieve basket items from Redis and process purchase
       const key = basketKey(req);
-      if (!key) {
-        throw new Error("User session is invalid.");
-      }
-      const basketItems = await fastify.redis.hgetall(key);
-      if (Object.keys(basketItems).length === 0) {
-        req.session.set("messages", [
-          { type: "info", text: "Your basket is empty." },
-        ]);
-        return reply.redirect("/basket");
-      }
+      const basket = await fastify.redis.hgetall(key);
 
-      // Clear the basket after successful purchase
-      await fastify.redis.del(key);
+      const items = await Promise.all(
+        Object.entries(basket).map(async ([sku, quantity]) => {
+          const item = await fastify.Item.findOne({ sku });
+          if (!item) throw new Error(`Could not find an item with SKU ${sku}`);
+          return {
+            sku,
+            name: item.name,
+            price: item.price,
+            quantity: parseInt(quantity, 10)
+          };
+        })
+      );
+      // TODO: Clear the basket after successful purchase
+
+      const sequelize = fastify.sequelize;
+      await sequelize.transaction(async (transaction) => {
+        const user = req.session.get("user");
+        const order = await fastify.models.Order.create(
+          {
+            userId: user.id,
+            email: user.email,
+            status: "Pending"
+          },
+          { transaction }
+        );
+
+        for (const item of items) {
+          await fastify.models.OrderItem.create(
+            {
+              orderId: order.id,
+              sku: item.sku,
+              name: item.name,
+              price: item.price,
+              qty: item.quantity
+            },
+            { transaction }
+          );
+        }
+        await fastify.redis.del(key);
+      });
 
       req.session.set("messages", [
         {
           type: "success",
-          text: "Thank you for your purchase! Your basket has been processed.",
-        },
+          text: "Thank you for your purchase! Your basket has been processed."
+        }
       ]);
       return reply.redirect("/");
     } catch (error) {
       fastify.log.error("Error processing basket purchase:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to process your purchase." },
+        { type: "danger", text: "Failed to process your purchase." }
       ]);
       return reply.redirect("/basket");
     }
@@ -163,21 +179,17 @@ export default async function (fastify) {
       if (!requireLogin(req, reply)) return;
 
       fastify.log.info("Clearing all items from the basket.");
-      // Clear all basket items from Redis
+      // TODO: Clear all basket items from Redis
       const key = basketKey(req);
-      if (!key) {
-        throw new Error("User session is invalid.");
-      }
       await fastify.redis.del(key);
-
       req.session.set("messages", [
-        { type: "success", text: "Your basket has been cleared." },
+        { type: "success", text: "Your basket has been cleared." }
       ]);
       return reply.redirect(req.headers.referer || "/basket");
     } catch (error) {
       fastify.log.error("Error clearing basket:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to clear the basket." },
+        { type: "danger", text: "Failed to clear the basket." }
       ]);
       return reply.redirect("/basket");
     }

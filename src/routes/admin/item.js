@@ -1,13 +1,12 @@
 export default async function (fastify) {
   // Route to display and manage items
-  fastify.get("/", async (_request, reply) => {
-    // fetching items from the database
+  fastify.get("/", async (request, reply) => {
     const items = await fastify.Item.find({});
 
     return reply.view("admin/item.ejs", {
       title: "Manage Items",
       currentPath: "/admin/item",
-      items,
+      items
     });
   });
 
@@ -15,42 +14,36 @@ export default async function (fastify) {
   fastify.post("/", async (request, reply) => {
     const { itemId, sku, name, price, tags } = request.body;
 
-    const parsedTags = tags
-      ? tags
-          .split(",")
-          .map(tag => tag.trim())
-          .filter(tag => tag.length > 0)
-      : [];
+    const parsedTags = tags ? tags.split(",").map((tag) => tag.trim()) : [];
 
     try {
-      // create or update an item
+      // Placeholder logic to create or update an item
       if (itemId) {
         await fastify.Item.findByIdAndUpdate(itemId, {
           sku,
           name,
           price,
-          tags: parsedTags,
+          tags
         });
         fastify.log.info(`Updating item ${itemId}:`, { sku, name, price });
       } else {
         await fastify.Item.create({ sku, name, price, tags: parsedTags });
-        fastify.log.info(`Creating new item: ${name}`);
+        fastify.log.info(`Created new item: ${name}`);
       }
-
-      request.session.set("messages", {
-        type: "success",
-        text: item ? `Item ${itemId} updated.` : "New item created.",
-      });
-
+      request.session.set("messages", [
+        {
+          type: "success",
+          text: itemId
+            ? "Item updated successfully."
+            : "Item created successfully."
+        }
+      ]);
       return reply.redirect("/admin/item");
-    } catch (error) {
-      fastify.log.error("Error creating/updating item:", error);
-
-      request.session.set("messages", {
-        type: "error",
-        text: "An error occurred while processing your request.",
-      });
-
+    } catch (err) {
+      request.session.set("messages", [
+        { type: "danger", text: "Failed to save item" }
+      ]);
+      fastify.log.error("Error saving item");
       return reply.redirect("/admin/item");
     }
   });
@@ -60,12 +53,18 @@ export default async function (fastify) {
     const { id } = request.params;
 
     try {
-      // delete an item
       await fastify.Item.findByIdAndDelete(id);
-      fastify.log.info(`Deleting item with id: ${id}`);
-    } catch (error) {
-      fastify.log.error("Error deleting item:", error);
+      request.session.set("messages", [
+        { type: "success", text: "Successfully deleted item." }
+      ]);
+    } catch (err) {
+      request.session.set("messages", [
+        { type: "danger", text: "Failed to delete item" }
+      ]);
+      fastify.log.error("Error delete item");
+      return reply.redirect("/admin/item");
     }
+    fastify.log.info(`Deleting item with id: ${id}`);
 
     return reply.redirect("/admin/item");
   });
@@ -74,14 +73,13 @@ export default async function (fastify) {
   fastify.get("/:id", async (request, reply) => {
     const { id } = request.params;
 
-    // fetching a single item from the database
     const item = await fastify.Item.findById(id);
 
     return reply.view("admin/item.ejs", {
       title: "Edit Item",
       currentPath: "/admin/item",
       items: [], // Pass empty items array for simplicity
-      item,
+      item
     });
   });
 }

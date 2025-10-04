@@ -9,25 +9,23 @@ async function mongoosePlugin(fastify, config) {
   // This is used to show the connection status on the home page
   fastify.decorate("mongoStatus", () => mongoStatus);
 
-  // Connect to MongoDB
+  // TODO: Connect to MongoDB
   try {
-    await mongoose.connect(config.uri, config.options);
+    await mongoose.connect(config.uri, config.otions);
     mongoStatus = "connected";
     fastify.log.info("Connected to MongoDB");
-    // Make the Item model available through fastify
     fastify.decorate("Item", Item);
-  } catch (error) {
-    mongoStatus = "error";
-    fastify.log.error("Error connecting to MongoDB:");
-    throw error; // Rethrow the error to prevent the server from starting
+  } catch (err) {
+    fastify.log.error("Error connecting to MongoDB");
+    throw err;
   }
 
   // Graceful shutdown
   fastify.addHook("onClose", async (fastifyInstance, done) => {
     mongoStatus = "disconnected";
-    // Close MongoDB connection
-    await mongoose.disconnect();
-    fastifyInstance.log.info("Disconnected from MongoDB");
+    // TODO: Close MongoDB connection
+    await mongoose.connection.close();
+    fastify.log.info("Connection to MongoDB closed");
     done();
   });
 }

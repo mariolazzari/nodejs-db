@@ -16,7 +16,7 @@ async function sessionPlugin(fastify, config) {
 
   const redisStore = new RedisStore({
     client: fastify.redis,
-    prefix: "myshop:",
+    prefix: "myshop:"
   });
 
   // Register fastify-secure-session
@@ -27,14 +27,14 @@ async function sessionPlugin(fastify, config) {
       path: "/",
       httpOnly: true,
       secure: false,
-      maxAge: 3600 * 1000, // 1-hour session expiration
+      maxAge: 3600 * 1000 // 1-hour session expiration
     },
     saveUnitialized: false,
-    resave: false,
+    resave: false
   });
 
   // Decorate to clear session
-  fastify.decorate("clearSession", req => {
+  fastify.decorate("clearSession", (req) => {
     req.session.set("user", null);
   });
 
@@ -43,7 +43,7 @@ async function sessionPlugin(fastify, config) {
     reply.locals = {
       ...(reply.locals || {}),
       currentUser: req.session.get("user") || null,
-      messages: req.session.get("messages") || [],
+      messages: req.session.get("messages") || []
     };
   });
 

@@ -5,7 +5,7 @@ import path from "path";
 async function staticPlugin(fastify) {
   fastify.register(fastifyStatic, {
     root: path.join(process.cwd(), "public"),
-    prefix: "/", // Serve static files from the root
+    prefix: "/" // Serve static files from the root
   });
 
   fastify.log.info("Static files served from /public");

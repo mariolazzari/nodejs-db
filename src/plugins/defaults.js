@@ -2,7 +2,7 @@ import fp from "fastify-plugin";
 
 // Define the defaults plugin
 async function defaultsPlugin(fastify) {
-  fastify.addHook("preHandler", async (_request, reply) => {
+  fastify.addHook("preHandler", async (request, reply) => {
     // Set default values for template variables
     reply.locals = {
       applicationName: "SimpleShop",
@@ -14,8 +14,8 @@ async function defaultsPlugin(fastify) {
       statuses: {
         mongo: fastify.mongoStatus ? fastify.mongoStatus() : "unknown",
         mysql: fastify.mysqlStatus ? fastify.mysqlStatus() : "unknown",
-        redis: fastify.redisStatus ? fastify.redisStatus() : "unknown",
-      },
+        redis: fastify.redisStatus ? fastify.redisStatus() : "unknown"
+      }
     };
   });
 }

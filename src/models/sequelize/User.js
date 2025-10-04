@@ -6,36 +6,34 @@ export default (sequelize, DataTypes) => {
     {
       email: {
         type: DataTypes.STRING,
-        unique: true,
         allowNull: false,
-        validate: { isEmail: true },
+        unique: true,
+        validate: { isEmail: true }
       },
-      password: { type: DataTypes.STRING, allowNull: false },
+      password: { type: DataTypes.STRING, allowNull: false }
     },
     {
       hooks: {
-        beforeCreate: async user => {
+        beforeCreate: async (user) => {
           if (user.password) {
-            const hash = await argon2.hash(user.password);
-            user.password = hash;
+            user.password = await argon2.hash(user.password);
           }
-        },
-      },
+        }
+      }
     }
   );
 
-  User.prototype.setPassword = async function (password) {
-    const hash = await argon2.hash(password);
-    this.password = hash;
+  User.prototype.setPassword = async function (plainPassword) {
+    const hashedPassword = await argon2.hash(plainPassword);
+    this.password = hashedPassword;
   };
 
-  User.prototype.validatePassword = async function (password) {
-    return argon2.verify(this.password, password);
+  User.prototype.comparePassword = async function (plainPassword) {
+    return await argon2.verify(this.password, plainPassword);
   };
 
-  User.associate = models => {
+  User.associate = (models) => {
     User.hasMany(models.Order, { foreignKey: "userId", as: "orders" });
   };
-
   return User;
 };
