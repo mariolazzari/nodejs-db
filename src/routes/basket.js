@@ -1,12 +1,20 @@
 function requireLogin(req, reply) {
   if (!req.session.get("user")) {
     req.session.set("messages", [
-      { type: "warning", text: "Please log in first." }
+      { type: "warning", text: "Please log in first." },
     ]);
     reply.redirect("/user/login");
     return false; // Prevent further execution
   }
   return true; // Allow execution to continue
+}
+
+function basketKey(req) {
+  const user = req.session.get("user");
+  if (!user) {
+    return null;
+  }
+  return `myBasket:user:${user.id}:items`;
 }
 
 export default async function (fastify) {
@@ -16,18 +24,26 @@ export default async function (fastify) {
       if (!requireLogin(req, reply)) return; // Stop execution if user is not logged in
 
       fastify.log.info("Fetching basket contents.");
-      // TODO: Fetch basket contents from Redis
-      const items = []; // Replace this with Redis retrieval logic
+      // Fetch basket contents from Redis
+      const key = basketKey(req);
+      if (!key) {
+        throw new Error("User session is invalid.");
+      }
+      const basketItems = await fastify.redis.hgetall(key);
+      const items = Object.entries(basketItems).map(([sku, quantity]) => ({
+        sku,
+        quantity: +quantity,
+      }));
 
       return reply.view("basket.ejs", {
         title: "Your Basket",
         currentPath: "/basket",
-        items
+        items,
       });
     } catch (error) {
       fastify.log.error("Error fetching basket contents:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to load basket contents." }
+        { type: "danger", text: "Failed to load basket contents." },
       ]);
       return reply.redirect("/basket");
     }
@@ -41,19 +57,24 @@ export default async function (fastify) {
       const { sku, quantity } = req.body;
       fastify.log.info(`Adding item with SKU: ${sku}, quantity: ${quantity}`);
 
-      // TODO: Add the item to the Redis basket
+      // Add the item to the Redis basket
+      const key = basketKey(req);
+      if (!key) {
+        throw new Error("User session is invalid.");
+      }
+      await fastify.redis.hincrby(key, sku, +quantity);
 
       req.session.set("messages", [
         {
           type: "success",
-          text: `Item with SKU: ${sku} was added to the basket.`
-        }
+          text: `Item with SKU: ${sku} was added to the basket.`,
+        },
       ]);
       return reply.redirect(req.headers.referer || "/basket");
     } catch (error) {
       fastify.log.error("Error adding item to basket:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to add item to the basket." }
+        { type: "danger", text: "Failed to add item to the basket." },
       ]);
       return reply.redirect("/basket");
     }
@@ -67,19 +88,24 @@ export default async function (fastify) {
       const { sku } = req.body;
       fastify.log.info(`Removing item with SKU: ${sku}`);
 
-      // TODO: Remove the item from the Redis basket
+      // Remove the item from the Redis basket
+      const key = basketKey(req);
+      if (!key) {
+        throw new Error("User session is invalid.");
+      }
+      await fastify.redis.hdel(key, sku);
 
       req.session.set("messages", [
         {
           type: "success",
-          text: `Item with SKU: ${sku} was removed from the basket.`
-        }
+          text: `Item with SKU: ${sku} was removed from the basket.`,
+        },
       ]);
       return reply.redirect(req.headers.referer || "/basket");
     } catch (error) {
       fastify.log.error("Error removing item from basket:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to remove item from the basket." }
+        { type: "danger", text: "Failed to remove item from the basket." },
       ]);
       return reply.redirect("/basket");
     }
@@ -97,14 +123,14 @@ export default async function (fastify) {
       req.session.set("messages", [
         {
           type: "success",
-          text: "Thank you for your purchase! Your basket has been processed."
-        }
+          text: "Thank you for your purchase! Your basket has been processed.",
+        },
       ]);
       return reply.redirect("/");
     } catch (error) {
       fastify.log.error("Error processing basket purchase:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to process your purchase." }
+        { type: "danger", text: "Failed to process your purchase." },
       ]);
       return reply.redirect("/basket");
     }
@@ -116,16 +142,21 @@ export default async function (fastify) {
       if (!requireLogin(req, reply)) return;
 
       fastify.log.info("Clearing all items from the basket.");
-      // TODO: Clear all basket items from Redis
+      // Clear all basket items from Redis
+      const key = basketKey(req);
+      if (!key) {
+        throw new Error("User session is invalid.");
+      }
+      await fastify.redis.del(key);
 
       req.session.set("messages", [
-        { type: "success", text: "Your basket has been cleared." }
+        { type: "success", text: "Your basket has been cleared." },
       ]);
       return reply.redirect(req.headers.referer || "/basket");
     } catch (error) {
       fastify.log.error("Error clearing basket:", error);
       req.session.set("messages", [
-        { type: "danger", text: "Failed to clear the basket." }
+        { type: "danger", text: "Failed to clear the basket." },
       ]);
       return reply.redirect("/basket");
     }
