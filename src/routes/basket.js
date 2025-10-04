@@ -30,10 +30,18 @@ export default async function (fastify) {
         throw new Error("User session is invalid.");
       }
       const basketItems = await fastify.redis.hgetall(key);
-      const items = Object.entries(basketItems).map(([sku, quantity]) => ({
-        sku,
-        quantity: +quantity,
-      }));
+      const items = await Promise.all(
+        Object.entries(basketItems).map(async ([sku, quantity]) => {
+          const items = await fastify.Item.findOne({ sku });
+
+          return {
+            sku,
+            name: items ? items.name : "Unknown Item",
+            price: items ? items.price : "N/A",
+            quantity: +quantity,
+          };
+        })
+      );
 
       return reply.view("basket.ejs", {
         title: "Your Basket",
