@@ -11,6 +11,7 @@ import routesPlugin from "./plugins/routes.js";
 import defaultsPlugin from "./plugins/defaults.js";
 import sessionPlugin from "./plugins/session.js";
 import formBody from "@fastify/formbody";
+import basketPlugin from "./routes/basket.js";
 
 // Create a Fastify instance with logging enabled
 const fastify = Fastify({ logger: true, disableRequestLogging: true });
@@ -38,6 +39,8 @@ fastify.register(sessionPlugin, config.session);
 
 // Register the view plugin
 fastify.register(viewPlugin);
+
+fastify.register(basketPlugin);
 
 // Register the routes plugin
 fastify.register(routesPlugin);

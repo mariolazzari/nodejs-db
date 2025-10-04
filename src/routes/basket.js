@@ -117,8 +117,21 @@ export default async function (fastify) {
       if (!requireLogin(req, reply)) return;
 
       fastify.log.info("Processing basket purchase...");
-      // TODO: Retrieve basket items from Redis and process purchase
-      // TODO: Clear the basket after successful purchase
+      // Retrieve basket items from Redis and process purchase
+      const key = basketKey(req);
+      if (!key) {
+        throw new Error("User session is invalid.");
+      }
+      const basketItems = await fastify.redis.hgetall(key);
+      if (Object.keys(basketItems).length === 0) {
+        req.session.set("messages", [
+          { type: "info", text: "Your basket is empty." },
+        ]);
+        return reply.redirect("/basket");
+      }
+
+      // Clear the basket after successful purchase
+      await fastify.redis.del(key);
 
       req.session.set("messages", [
         {
